@@ -25,12 +25,10 @@ public class WeekAmountTransactionValidator extends Validator {
     LocalDate startOfWeek = transaction.getTime().toLocalDate().with(DayOfWeek.MONDAY);
     LocalDate endOfWeek = transaction.getTime().toLocalDate().with(DayOfWeek.SUNDAY);
 
-    List<Transaction> dailyTransactions = transactionRepository.findAllByCustomerIdAndTimeBetween(
+    List<Transaction> weeklyTransactions = transactionRepository.findAllByCustomerIdAndTimeBetween(
         transaction.getCustomerId(), startOfWeek.atStartOfDay(), endOfWeek.atTime(LocalTime.MAX));
-    BigDecimal totalAmount = dailyTransactions.stream()
-        .filter(Transaction::getIsAccepted)
-        .map(Transaction::getAmount)
-        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+    BigDecimal totalAmount = getTotalAmount(weeklyTransactions);
 
     if (totalAmount.add(transaction.getAmount()).doubleValue() > weekLimitAmount) {
       log.info(
@@ -39,5 +37,12 @@ public class WeekAmountTransactionValidator extends Validator {
       return new ValidationResult(false, ErrorCode.WEEK_LIMIT_AMOUNT);
     }
     return validateNext(transaction);
+  }
+
+  private BigDecimal getTotalAmount(List<Transaction> dailyTransactions) {
+    return dailyTransactions.stream()
+        .filter(Transaction::getIsAccepted)
+        .map(Transaction::getAmount)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 }
